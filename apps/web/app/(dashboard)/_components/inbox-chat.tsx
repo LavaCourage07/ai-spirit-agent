@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
-import Link from "next/link"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useChat, type UIMessage } from "@ai-sdk/react"
 import { TextStreamChatTransport } from "ai"
@@ -52,6 +51,7 @@ import {
   type LocalLlmConfigStore,
 } from "@/auth/local-llm-config"
 import { AgentAvatar } from "@/components/agent-avatar"
+import { LlmQuickSetup } from "@/components/llm-quick-setup"
 import { UserAvatar } from "@/components/user-avatar"
 import { useWebDashboardContext } from "@/components/web-dashboard-guard"
 import { getWebClientEnv } from "@/env.client"
@@ -366,6 +366,7 @@ function InboxChatInner({
     buildPersistedAssistantMessageIds(serverConversation.messages),
   )
   const [llmStore, setLlmStore] = useState<LocalLlmConfigStore>({ selectedConfigId: null, items: [] })
+  const [isLlmSetupOpen, setIsLlmSetupOpen] = useState(false)
   const enabledLlmConfigs = llmStore.items.filter((item) => item.enabled)
   const hasLlmAccess = enabledLlmConfigs.length > 0
   const selectedLlmConfig =
@@ -714,7 +715,12 @@ function InboxChatInner({
 
   useEffect(() => {
     function reloadLlmStore() {
-      setLlmStore(readLocalLlmConfigStore())
+      const nextStore = readLocalLlmConfigStore()
+      setLlmStore(nextStore)
+
+      if (!nextStore.items.some((item) => item.enabled)) {
+        setIsLlmSetupOpen(true)
+      }
     }
 
     reloadLlmStore()
@@ -1011,9 +1017,9 @@ function InboxChatInner({
         {!hasLlmAccess ? (
           <div className="mx-auto mb-3 flex max-w-3xl items-center justify-between gap-3 rounded-lg border border-[#e3d7bd] bg-[#fffaf0] px-3 py-2.5 text-xs text-[#7b6a4c]">
             <span>还没有配置模型 API Key，暂时无法开始对话。</span>
-            <Link className="shrink-0 font-semibold text-[#8b6331] underline underline-offset-2" href="/llm-access">
-              去配置模型
-            </Link>
+            <button className="shrink-0 font-semibold text-[#8b6331] underline underline-offset-2" onClick={() => setIsLlmSetupOpen(true)} type="button">
+              立即配置
+            </button>
           </div>
         ) : null}
         <PromptInput
@@ -1092,6 +1098,11 @@ function InboxChatInner({
           </PromptInputFooter>
         </PromptInput>
       </div>
+      <LlmQuickSetup
+        onOpenChange={setIsLlmSetupOpen}
+        onSaved={() => setLlmStore(readLocalLlmConfigStore())}
+        open={isLlmSetupOpen}
+      />
     </section>
   )
 }
