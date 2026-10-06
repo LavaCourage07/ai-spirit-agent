@@ -71,7 +71,7 @@ const data = {
       icon: Coins,
     },
     {
-      title: "LLM Access",
+      title: "模型配置",
       url: "/llm-access",
       icon: PlugZap,
     },

@@ -41,6 +41,73 @@ function createEmptyForm(): LocalLlmConfigItem {
   return createDefaultLlmConfigItem()
 }
 
+type LlmProviderPreset = {
+  id: string
+  name: string
+  description: string
+  providerName: string
+  baseURL: string
+  model: string
+  wireApi: "chat_completions" | "responses"
+}
+
+const providerPresets: LlmProviderPreset[] = [
+  {
+    id: "deepseek",
+    name: "DeepSeek",
+    description: "适合日常对话与中文创作",
+    providerName: "DeepSeek",
+    baseURL: "https://api.deepseek.com/v1",
+    model: "deepseek-chat",
+    wireApi: "chat_completions",
+  },
+  {
+    id: "kimi",
+    name: "Kimi",
+    description: "Moonshot 官方 API",
+    providerName: "Kimi",
+    baseURL: "https://api.moonshot.cn/v1",
+    model: "moonshot-v1-8k",
+    wireApi: "chat_completions",
+  },
+  {
+    id: "glm",
+    name: "GLM",
+    description: "智谱开放平台",
+    providerName: "GLM",
+    baseURL: "https://open.bigmodel.cn/api/paas/v4",
+    model: "glm-4-flash",
+    wireApi: "chat_completions",
+  },
+  {
+    id: "openai",
+    name: "OpenAI",
+    description: "官方 OpenAI API",
+    providerName: "OpenAI",
+    baseURL: "https://api.openai.com/v1",
+    model: "gpt-4o-mini",
+    wireApi: "chat_completions",
+  },
+  {
+    id: "claude-compatible",
+    name: "Claude",
+    description: "填写支持 OpenAI 格式的 Claude 中转地址",
+    providerName: "Claude 兼容接口",
+    baseURL: "",
+    model: "claude-sonnet-4-5",
+    wireApi: "chat_completions",
+  },
+  {
+    id: "custom",
+    name: "自定义中转站",
+    description: "支持大多数 OpenAI 兼容服务",
+    providerName: "Custom Gateway",
+    baseURL: "",
+    model: "",
+    wireApi: "chat_completions",
+  },
+]
+
 type ConnectionTestState = {
   latencyMs?: number
   message: string
@@ -109,6 +176,21 @@ export default function LlmAccessPage() {
   function handleNew() {
     setForm(createEmptyForm())
     setNotice("")
+  }
+
+  function handlePreset(preset: LlmProviderPreset) {
+    setForm((current) => ({
+      ...current,
+      name: preset.name,
+      providerName: preset.providerName,
+      baseURL: preset.baseURL,
+      model: preset.model,
+      wireApi: preset.wireApi,
+      apiKey: "",
+    }))
+    setNotice(preset.id === "claude-compatible"
+      ? "Claude 原生接口暂不直接兼容，请填写支持 OpenAI 格式的 Claude 中转地址。"
+      : "已套用服务商默认配置，请填写你的 API Key。")
   }
 
   function handleEdit(item: LocalLlmConfigItem) {
@@ -366,6 +448,33 @@ export default function LlmAccessPage() {
               }}
             >
               <div className="mx-auto grid w-full max-w-[56rem] gap-6">
+                <section className="grid gap-3 rounded-xl border border-[#e6ded2] bg-[#fcf8f1] p-4">
+                  <div>
+                    <p className="text-[13px] font-semibold text-[#27353a]">先选择你的模型服务</p>
+                    <p className="mt-1 text-[11px] leading-5 text-[#8c8175]">
+                      选择后会自动填写接口地址和常用模型，你只需要补充自己的 API Key。没有看到的服务，可以选择自定义中转站。
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {providerPresets.map((preset) => (
+                      <button
+                        className={cn(
+                          "min-h-16 rounded-lg border bg-[#fffefa] px-3 py-2 text-left transition-colors hover:border-[#a37b4f] hover:bg-white",
+                          form.providerName === preset.providerName && form.name === preset.name
+                            ? "border-[#a37b4f] ring-1 ring-[#d9c2a7]"
+                            : "border-[#e1e3df]",
+                        )}
+                        key={preset.id}
+                        onClick={() => handlePreset(preset)}
+                        type="button"
+                      >
+                        <span className="block text-xs font-semibold text-[#3d4b4d]">{preset.name}</span>
+                        <span className="mt-1 block text-[10px] leading-4 text-[#9a938c]">{preset.description}</span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
                 <div className="grid gap-5 md:grid-cols-2">
                   <label className="grid gap-2" htmlFor="llm-name">
                     <span className="text-[11px] font-medium text-[#687572]">连接名称</span>

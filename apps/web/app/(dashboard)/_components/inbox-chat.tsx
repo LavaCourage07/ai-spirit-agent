@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import Link from "next/link"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useChat, type UIMessage } from "@ai-sdk/react"
 import { TextStreamChatTransport } from "ai"
@@ -366,6 +367,7 @@ function InboxChatInner({
   )
   const [llmStore, setLlmStore] = useState<LocalLlmConfigStore>({ selectedConfigId: null, items: [] })
   const enabledLlmConfigs = llmStore.items.filter((item) => item.enabled)
+  const hasLlmAccess = enabledLlmConfigs.length > 0
   const selectedLlmConfig =
     enabledLlmConfigs.find((item) => item.id === llmStore.selectedConfigId) ?? null
   const transport = useMemo(
@@ -1006,12 +1008,20 @@ function InboxChatInner({
       </Conversation>
 
       <div className="bg-[#f7f8f6] px-4 pb-4 pt-3 sm:px-6">
+        {!hasLlmAccess ? (
+          <div className="mx-auto mb-3 flex max-w-3xl items-center justify-between gap-3 rounded-lg border border-[#e3d7bd] bg-[#fffaf0] px-3 py-2.5 text-xs text-[#7b6a4c]">
+            <span>还没有配置模型 API Key，暂时无法开始对话。</span>
+            <Link className="shrink-0 font-semibold text-[#8b6331] underline underline-offset-2" href="/llm-access">
+              去配置模型
+            </Link>
+          </div>
+        ) : null}
         <PromptInput
           className="mx-auto max-w-3xl [&_[data-slot=input-group]]:rounded-lg [&_[data-slot=input-group]]:border-[#d9dfdc] [&_[data-slot=input-group]]:bg-[#fffefa] [&_[data-slot=input-group]]:shadow-[0_10px_28px_rgba(39,53,58,0.06)] [&_[data-slot=input-group]]:focus-within:border-[#9baba4] [&_[data-slot=input-group]]:focus-within:ring-2 [&_[data-slot=input-group]]:focus-within:ring-[#dce5e0]"
           onSubmit={(message) => {
             const text = message.text.trim()
 
-            if (!text) {
+            if (!text || !hasLlmAccess) {
               return
             }
 
@@ -1024,7 +1034,7 @@ function InboxChatInner({
               {quickPrompts.map((prompt) => (
                 <button
                   className="h-7 shrink-0 rounded-md bg-[#f1f3f1] px-2.5 text-[11px] font-medium text-[#68736f] transition-colors hover:bg-[#e7ece9] hover:text-[#27353a] disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={isSending || isConversationTransitioning}
+                  disabled={isSending || isConversationTransitioning || !hasLlmAccess}
                   key={prompt}
                   onClick={() => setDraftMessage(prompt)}
                   type="button"
@@ -1036,7 +1046,7 @@ function InboxChatInner({
           </PromptInputHeader>
           <PromptInputTextarea
             className="max-h-44 min-h-16 px-4 py-2.5 text-sm leading-6 placeholder:text-[#a2aaa7]"
-            disabled={isSending || isConversationTransitioning}
+            disabled={isSending || isConversationTransitioning || !hasLlmAccess}
             onChange={(event) => setDraftMessage(event.currentTarget.value)}
             placeholder="输入消息..."
             value={draftMessage}
@@ -1075,7 +1085,7 @@ function InboxChatInner({
             </PromptInputTools>
             <PromptInputSubmit
               className="size-8 rounded-md bg-[#27353a] text-white hover:bg-[#35484c] disabled:bg-[#c8cfcc]"
-              disabled={isSending || isConversationTransitioning}
+              disabled={isSending || isConversationTransitioning || !hasLlmAccess}
               onStop={stop}
               status={status}
             />
