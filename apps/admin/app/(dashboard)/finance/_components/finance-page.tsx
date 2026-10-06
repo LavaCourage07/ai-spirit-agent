@@ -330,7 +330,7 @@ export function FinancePage({ selectedMonth, months, bills, totalPaidAmountCents
               {isSavingBill ? '保存中...' : editingBillId ? '保存账单' : '新增账单收入'}
             </Button>
             {editingBillId ? (
-              <Button type="button" variant="outline" disabled={isSavingBill} onClick={resetForm}>
+              <Button type="button" variant="outline" disabled={isSavingBill} onClick={() => resetForm()}>
                 取消编辑
               </Button>
             ) : null}
