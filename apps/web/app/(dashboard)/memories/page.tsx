@@ -87,8 +87,9 @@ export default function MemoriesPage() {
       return
     }
 
-    if (!selectedAgentId || !agents.some((agent) => agent.id === selectedAgentId)) {
-      setSelectedAgentId(agents[0].id)
+    const firstAgent = agents[0]
+    if (firstAgent && (!selectedAgentId || !agents.some((agent) => agent.id === selectedAgentId))) {
+      setSelectedAgentId(firstAgent.id)
     }
   }, [agents, selectedAgentId])
 
@@ -116,8 +117,9 @@ export default function MemoriesPage() {
       return
     }
 
-    if (!selectedMemoryId || !memories.some((memory) => memory.id === selectedMemoryId)) {
-      setSelectedMemoryId(memories[0].id)
+    const firstMemory = memories[0]
+    if (firstMemory && (!selectedMemoryId || !memories.some((memory) => memory.id === selectedMemoryId))) {
+      setSelectedMemoryId(firstMemory.id)
     }
   }, [memories, selectedMemoryId])
 
