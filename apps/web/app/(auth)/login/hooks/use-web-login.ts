@@ -3,7 +3,7 @@
 import type { WebPasswordLoginRequest } from '@repo/contracts'
 import { useMutation } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { loginByApi, redirectToGithubLogin } from '@/auth/login-client'
+import { loginByApi, redirectToGithubLogin, redirectToGoogleLogin } from '@/auth/login-client'
 
 export const seededWebAccount: WebPasswordLoginRequest = {
   email: 'user01@example.com',
@@ -21,6 +21,9 @@ export function useWebLogin() {
   })
   const githubMutation = useMutation({
     mutationFn: () => redirectToGithubLogin(),
+  })
+  const googleMutation = useMutation({
+    mutationFn: () => redirectToGoogleLogin(),
   })
 
   async function submit(input: WebPasswordLoginRequest) {
@@ -40,13 +43,23 @@ export function useWebLogin() {
       ? mutation.error.message
       : githubMutation.error instanceof Error
         ? githubMutation.error.message
+        : googleMutation.error instanceof Error
+          ? googleMutation.error.message
         : null,
     isGithubSubmitting: githubMutation.isPending,
+    isGoogleSubmitting: googleMutation.isPending,
     isSubmitting: mutation.isPending,
     loginWithGithub: () => {
       mutation.reset()
       githubMutation.reset()
+      googleMutation.reset()
       void githubMutation.mutateAsync()
+    },
+    loginWithGoogle: () => {
+      mutation.reset()
+      githubMutation.reset()
+      googleMutation.reset()
+      void googleMutation.mutateAsync()
     },
     submit,
   }

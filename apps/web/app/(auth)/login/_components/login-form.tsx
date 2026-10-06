@@ -7,7 +7,7 @@ import { Input } from "@repo/ui/input"
 import { seededWebAccount, useWebLogin } from "../hooks/use-web-login"
 
 export function LoginForm({className, ...props}: React.ComponentProps<"form">) {
-  const { error, isGithubSubmitting, isSubmitting, loginWithGithub, submit } = useWebLogin()
+  const { error, isGithubSubmitting, isGoogleSubmitting, isSubmitting, loginWithGithub, loginWithGoogle, submit } = useWebLogin()
   const { register, handleSubmit, formState: { errors } } = useForm<WebPasswordLoginRequest>({
     defaultValues: seededWebAccount,
   })
@@ -80,7 +80,16 @@ export function LoginForm({className, ...props}: React.ComponentProps<"form">) {
           <Button
             variant="outline"
             type="button"
-            disabled={isSubmitting || isGithubSubmitting}
+            disabled={isSubmitting || isGithubSubmitting || isGoogleSubmitting}
+            onClick={loginWithGoogle}
+          >
+            <span className="flex size-4 items-center justify-center rounded-full bg-white text-[10px] font-bold text-blue-600">G</span>
+            {isGoogleSubmitting ? "正在跳转 Google..." : "使用 Google 登录"}
+          </Button>
+          <Button
+            variant="outline"
+            type="button"
+            disabled={isSubmitting || isGithubSubmitting || isGoogleSubmitting}
             onClick={loginWithGithub}
           >
             <svg className="size-4 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">

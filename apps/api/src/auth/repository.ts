@@ -2021,6 +2021,38 @@ export async function findWebUserByGithubAccount(
     : null
 }
 
+export async function findWebUserByOAuthAccount(
+  db: ApiDb,
+  provider: 'github' | 'google',
+  providerUserId: string,
+): Promise<{
+  userId: string
+  userStatus: 'active' | 'suspended' | 'deleted'
+} | null> {
+  const row = await db
+    .select({
+      userId: users.id,
+      userStatus: users.status,
+    })
+    .from(oauthAccounts)
+    .innerJoin(users, eq(users.id, oauthAccounts.userId))
+    .where(
+      and(
+        eq(oauthAccounts.provider, provider),
+        eq(oauthAccounts.providerUserId, providerUserId),
+      ),
+    )
+    .limit(1)
+    .get()
+
+  return row
+    ? {
+        ...row,
+        userStatus: row.userStatus as 'active' | 'suspended' | 'deleted',
+      }
+    : null
+}
+
 export async function findUserByNormalizedEmail(
   db: ApiDb,
   normalizedEmail: string,
@@ -2145,6 +2177,87 @@ export async function linkGithubAccountToUser(params: {
     createdAtMs: params.nowMs,
     updatedAtMs: params.nowMs,
   })
+}
+
+export async function linkOAuthAccountToUser(params: {
+  db: ApiDb
+  oauthAccountId: string
+  userId: string
+  emailId: string | null
+  provider: 'github' | 'google'
+  providerUserId: string
+  providerLogin: string | null
+  nowMs: number
+}): Promise<void> {
+  await params.db.insert(oauthAccounts).values({
+    id: params.oauthAccountId,
+    userId: params.userId,
+    provider: params.provider,
+    providerUserId: params.providerUserId,
+    providerLogin: params.providerLogin,
+    emailId: params.emailId,
+    createdAtMs: params.nowMs,
+    updatedAtMs: params.nowMs,
+  })
+}
+
+export async function createOAuthWebUser(params: {
+  db: ApiDb
+  userId: string
+  emailId: string
+  oauthAccountId: string
+  roleBindingId: string
+  webRoleId: string
+  email: string
+  normalizedEmail: string
+  displayName: string
+  provider: 'github' | 'google'
+  providerUserId: string
+  providerLogin: string | null
+  nowMs: number
+}): Promise<void> {
+  await params.db.batch([
+    params.db.insert(users).values({
+      id: params.userId,
+      status: 'active',
+      displayName: params.displayName,
+      primaryEmailId: params.emailId,
+      avatarKey: null,
+      createdAtMs: params.nowMs,
+      updatedAtMs: params.nowMs,
+      lastLoginAtMs: null,
+    }),
+    params.db.insert(userEmails).values({
+      id: params.emailId,
+      userId: params.userId,
+      email: params.email,
+      normalizedEmail: params.normalizedEmail,
+      isPrimary: 1,
+      isVerified: 1,
+      verifiedAtMs: params.nowMs,
+      source: params.provider,
+      createdAtMs: params.nowMs,
+      updatedAtMs: params.nowMs,
+    }),
+    params.db.insert(oauthAccounts).values({
+      id: params.oauthAccountId,
+      userId: params.userId,
+      provider: params.provider,
+      providerUserId: params.providerUserId,
+      providerLogin: params.providerLogin,
+      emailId: params.emailId,
+      createdAtMs: params.nowMs,
+      updatedAtMs: params.nowMs,
+    }),
+    params.db.insert(userRoleBindings).values({
+      id: params.roleBindingId,
+      userId: params.userId,
+      roleId: params.webRoleId,
+      status: 'active',
+      grantedAtMs: params.nowMs,
+      revokedAtMs: null,
+    }),
+  ])
 }
 
 export async function ensureUserHasRole(params: {

@@ -52,6 +52,9 @@ import type {
   WebGithubAuthUrlResponse,
   WebGithubTicketLoginRequest,
   WebGithubTicketLoginResponse,
+  WebGoogleAuthUrlResponse,
+  WebGoogleTicketLoginRequest,
+  WebGoogleTicketLoginResponse,
   WebLogoutRequest,
   WebPasswordLoginRequest,
   WebPasswordLoginResponse,
@@ -70,6 +73,14 @@ export function getWebGithubAuthUrl() {
 
 export function loginWithWebGithubTicket(input: WebGithubTicketLoginRequest) {
   return http.post<WebGithubTicketLoginResponse, WebGithubTicketLoginRequest>('/auth/web/github/ticket/login', input)
+}
+
+export function getWebGoogleAuthUrl() {
+  return http.get<WebGoogleAuthUrlResponse>('/auth/web/google/authorize')
+}
+
+export function loginWithWebGoogleTicket(input: WebGoogleTicketLoginRequest) {
+  return http.post<WebGoogleTicketLoginResponse, WebGoogleTicketLoginRequest>('/auth/web/google/ticket/login', input)
 }
 
 export function refreshWebSession(input: WebTokenRefreshRequest) {

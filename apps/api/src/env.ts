@@ -25,6 +25,9 @@ const apiEnvSchema = z.object({
   GITHUB_OAUTH_CLIENT_ID: optionalNonEmptyString,
   GITHUB_OAUTH_CLIENT_SECRET: optionalNonEmptyString,
   GITHUB_OAUTH_CALLBACK_URL: optionalUrl,
+  GOOGLE_OAUTH_CLIENT_ID: optionalNonEmptyString,
+  GOOGLE_OAUTH_CLIENT_SECRET: optionalNonEmptyString,
+  GOOGLE_OAUTH_CALLBACK_URL: optionalUrl,
 })
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>
@@ -44,5 +47,8 @@ export function getApiEnv(bindings: ApiBindings): ApiEnv {
     GITHUB_OAUTH_CLIENT_ID: bindings.GITHUB_OAUTH_CLIENT_ID,
     GITHUB_OAUTH_CLIENT_SECRET: bindings.GITHUB_OAUTH_CLIENT_SECRET,
     GITHUB_OAUTH_CALLBACK_URL: bindings.GITHUB_OAUTH_CALLBACK_URL,
+    GOOGLE_OAUTH_CLIENT_ID: bindings.GOOGLE_OAUTH_CLIENT_ID,
+    GOOGLE_OAUTH_CLIENT_SECRET: bindings.GOOGLE_OAUTH_CLIENT_SECRET,
+    GOOGLE_OAUTH_CALLBACK_URL: bindings.GOOGLE_OAUTH_CALLBACK_URL,
   })
 }

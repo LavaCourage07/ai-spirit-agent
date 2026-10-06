@@ -82,6 +82,24 @@ function base64UrlEncode(input: Uint8Array) {
     .replaceAll('=', '')
 }
 
+function base64UrlDecode(input: string) {
+  const normalized = input.replaceAll('-', '+').replaceAll('_', '/')
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=')
+  const binary = atob(padded)
+
+  return new Uint8Array([...binary].map((character) => character.charCodeAt(0)))
+}
+
+export function isAllowedWebOrigin(env: ReturnType<typeof getApiEnv>, origin: string) {
+  return origin === env.WEB_ORIGIN || /^https:\/\/[a-z0-9-]+\.ai-spirit-web\.pages\.dev$/.test(origin)
+}
+
+export function resolveWebOrigin(c: Context<{ Bindings: ApiBindings }>, env: ReturnType<typeof getApiEnv>) {
+  const requestOrigin = c.req.header('Origin')
+
+  return requestOrigin && isAllowedWebOrigin(env, requestOrigin) ? requestOrigin : env.WEB_ORIGIN
+}
+
 async function signStatePayload(payload: string, secret: string) {
   const key = await crypto.subtle.importKey(
     'raw',
@@ -95,36 +113,42 @@ async function signStatePayload(payload: string, secret: string) {
   return base64UrlEncode(new Uint8Array(signature))
 }
 
-async function createOAuthState(secret: string) {
+export async function createOAuthState(secret: string, redirectOrigin: string) {
   const nonce = uuidv7()
   const issuedAtMs = Date.now()
-  const payload = `${nonce}.${issuedAtMs}`
+  const encodedOrigin = base64UrlEncode(new TextEncoder().encode(redirectOrigin))
+  const payload = `${nonce}.${issuedAtMs}.${encodedOrigin}`
   const signature = await signStatePayload(payload, secret)
 
   return `${payload}.${signature}`
 }
 
-async function verifyOAuthState(state: string, secret: string) {
+export async function verifyOAuthState(state: string, secret: string) {
   const parts = state.split('.')
 
-  if (parts.length !== 3) {
+  if (parts.length !== 4) {
     throw authUnauthorizedError('GitHub state is invalid')
   }
 
   const nonce = parts[0]
   const issuedAtValue = parts[1]
-  const signature = parts[2]
+  const encodedOrigin = parts[2]
+  const signature = parts[3]
   const issuedAtMs = Number(issuedAtValue)
 
-  if (!nonce || !signature || !Number.isFinite(issuedAtMs) || Date.now() - issuedAtMs > 10 * 60 * 1000) {
+  if (!nonce || !encodedOrigin || !signature || !Number.isFinite(issuedAtMs) || Date.now() - issuedAtMs > 10 * 60 * 1000) {
     throw authUnauthorizedError('GitHub state is expired')
   }
 
-  const expectedSignature = await signStatePayload(`${nonce}.${issuedAtMs}`, secret)
+  const expectedSignature = await signStatePayload(`${nonce}.${issuedAtMs}.${encodedOrigin}`, secret)
 
   if (signature !== expectedSignature) {
     throw authUnauthorizedError('GitHub state is invalid')
   }
+
+  const redirectOrigin = new TextDecoder().decode(base64UrlDecode(encodedOrigin))
+
+  return { redirectOrigin }
 }
 
 async function fetchGithubAccessToken(params: {
@@ -328,7 +352,7 @@ async function resolveGithubWebUser(params: {
   return userId
 }
 
-async function issueWebSessionForUser(params: {
+export async function issueWebSessionForUser(params: {
   c: Context<{ Bindings: ApiBindings }>
   userId: string
 }) {
@@ -403,7 +427,8 @@ export async function buildWebGithubAuthUrl(c: Context<{ Bindings: ApiBindings }
   }
 
   const { env, clientId, callbackUrl } = getGithubOAuthConfig(c)
-  const state = await createOAuthState(env.JWT_REFRESH_SECRET)
+  const redirectOrigin = resolveWebOrigin(c, env)
+  const state = await createOAuthState(env.JWT_REFRESH_SECRET, redirectOrigin)
   const url = new URL(githubAuthorizeUrl)
   url.searchParams.set('client_id', clientId)
   url.searchParams.set('redirect_uri', callbackUrl)
@@ -423,7 +448,19 @@ export async function handleWebGithubCallback(c: Context<{ Bindings: ApiBindings
   const error = c.req.query('error')
   const errorDescription = c.req.query('error_description')
   const { env, clientId, clientSecret, callbackUrl } = getGithubOAuthConfig(c)
-  const callbackResultUrl = new URL('/login/github/callback', env.WEB_ORIGIN)
+  let callbackResultUrl = new URL('/login/github/callback', env.WEB_ORIGIN)
+
+  if (state) {
+    try {
+      const { redirectOrigin } = await verifyOAuthState(state, env.JWT_REFRESH_SECRET)
+
+      if (isAllowedWebOrigin(env, redirectOrigin)) {
+        callbackResultUrl = new URL('/login/github/callback', redirectOrigin)
+      }
+    } catch {
+      // The regular flow below will return a signed-state error.
+    }
+  }
 
   if (error) {
     callbackResultUrl.searchParams.set('error', errorDescription ?? error)
@@ -436,7 +473,13 @@ export async function handleWebGithubCallback(c: Context<{ Bindings: ApiBindings
   }
 
   try {
-    await verifyOAuthState(state, env.JWT_REFRESH_SECRET)
+    const { redirectOrigin } = await verifyOAuthState(state, env.JWT_REFRESH_SECRET)
+
+    if (!isAllowedWebOrigin(env, redirectOrigin)) {
+      throw authUnauthorizedError('GitHub redirect origin is not allowed')
+    }
+
+    callbackResultUrl = new URL('/login/github/callback', redirectOrigin)
 
     const accessToken = await fetchGithubAccessToken({
       code,

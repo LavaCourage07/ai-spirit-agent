@@ -2,6 +2,7 @@ import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import {
   WebGithubTicketLoginRequestSchema,
+  WebGoogleTicketLoginRequestSchema,
   WebLogoutRequestSchema,
   WebPasswordLoginRequestSchema,
   WebTokenRefreshRequestSchema,
@@ -14,6 +15,11 @@ import {
   handleWebGithubCallback,
   handleWebGithubTicketLogin,
 } from '@/auth/services/web-github-oauth'
+import {
+  buildWebGoogleAuthUrl,
+  handleWebGoogleCallback,
+  handleWebGoogleTicketLogin,
+} from '@/auth/services/web-google-oauth'
 import { handleWebLogout } from '@/auth/services/web-logout'
 import { handleWebPasswordLogin } from '@/auth/services/web-password-login'
 import { handleWebTokenRefresh } from '@/auth/services/web-token-refresh'
@@ -44,6 +50,31 @@ webAuthRoute.post(
       c,
       ticket: payload.ticket,
     })
+
+    return c.json(buildSuccess(res, createApiMeta()))
+  },
+)
+
+webAuthRoute.get('/google/authorize', async (c) => {
+  const res = await buildWebGoogleAuthUrl(c)
+
+  return c.json(buildSuccess(res, createApiMeta()))
+})
+
+webAuthRoute.get('/google/callback', async (c) => {
+  return handleWebGoogleCallback(c)
+})
+
+webAuthRoute.post(
+  '/google/ticket/login',
+  zValidator(
+    'json',
+    WebGoogleTicketLoginRequestSchema,
+    buildValidationErrorHandler('Invalid Google login payload'),
+  ),
+  async (c) => {
+    const payload = c.req.valid('json')
+    const res = await handleWebGoogleTicketLogin({ c, ticket: payload.ticket })
 
     return c.json(buildSuccess(res, createApiMeta()))
   },
